@@ -68,9 +68,8 @@ export default async function ConsentPage({ params, searchParams }: ConsentPageP
       <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10 relative">
         <div className="flex w-full max-w-sm flex-col gap-6">
           <div className="flex items-center justify-center">
-            <Link href={`/${locale}`} className="flex items-center gap-2 font-medium">
-              <Logo className="size-6" />
-              {dict.common.appName}
+            <Link href={`/${locale}`} >
+              <Logo className="flex items-center gap-2" />
             </Link>
           </div>
           <Card>

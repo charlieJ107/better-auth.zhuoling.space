@@ -4,7 +4,6 @@ export default async function TermsPage({ params }: { params: Promise<{ locale: 
     const { locale } = await params;
     const { default: Content } = await import(`@/content/terms-and-conditions-${locale}.mdx`);
     return (
-
         <Content />
     )
 }
