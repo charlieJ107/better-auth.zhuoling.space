@@ -13,7 +13,7 @@ import { getBrandingValue } from "./branding";
 const appUrl = process.env.BETTER_AUTH_URL;
 const appName = getBrandingValue('appName');
 if (!appName || !appUrl) {
-    throw new Error("APP_NAME or BETTER_AUTH_URL is not set");
+    throw new Error("Branding appName or BETTER_AUTH_URL is not set");
 }
 
 export const trustedClients: (Client & { skipConsent?: boolean })[] = []

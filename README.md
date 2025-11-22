@@ -73,7 +73,6 @@ Create a `.env.local` file in the root directory:
 DATABASE_URL=postgresql://user:password@localhost:5432/better_auth
 
 # App Configuration
-APP_NAME=Your App Name
 BETTER_AUTH_URL=http://localhost:3000
 
 # Branding Configuration (optional)

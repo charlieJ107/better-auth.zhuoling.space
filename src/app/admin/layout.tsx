@@ -21,33 +21,28 @@ import { auth } from "@/lib/auth";
 import { Activity, Users, BarChart3, Settings, Key } from "lucide-react";
 import Logo from "@/components/logo";
 import Link from "next/link";
-import { getBrandingConfig } from "@/lib/branding";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
     const session = await auth.api.getSession({
         headers: await headers(),
     });
-    
+
     if (!session?.user) {
         redirect('/login?callbackURL=/admin');
     }
-    
+
     if (session.user.role !== 'admin') {
         redirect('/unauthorized');
     }
 
-    const branding = getBrandingConfig();
     return (
         <SidebarProvider>
             <Sidebar collapsible="icon">
                 <SidebarHeader className="flex items-center justify-between my-4">
-                    <div className="flex items-center gap-2">
-                        <Logo className="size-10" />
-                        <span className="text-2xl font-bold">{branding.appName} Admin</span>
-                    </div>
+                    <Logo className="flex items-center flex-col gap-2" />
                     <TeamSwitcher teams={[]} />
                 </SidebarHeader>
-                <SidebarSeparator className="my-4" />
+                <SidebarSeparator className="my-4 ml-0" />
                 <SidebarContent>
                     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
                         <SidebarGroupLabel>
@@ -104,6 +99,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                         </SidebarGroupContent>
                     </SidebarGroup>
                 </SidebarContent>
+                <SidebarSeparator className="mt-4 ml-0" />
                 <SidebarFooter>
                     <NavUser user={{
                         name: session.user.name,

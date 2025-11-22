@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
 import { locales } from "@/lib/i18n";
+import { getBrandingValue } from "@/lib/branding";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,14 +13,11 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
-const appName = process.env.APP_NAME;
-if (!appName) {
-  throw new Error("APP_NAME is not set");
-}
+const appName = getBrandingValue('appName');
 
 export const metadata: Metadata = {
   title: appName,
-  description: appName + " authentication application",
+  description: getBrandingValue('serviceDescription.en'),
 };
 
 export function generateStaticParams() {
