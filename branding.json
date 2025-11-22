@@ -1,0 +1,16 @@
+{
+  "appName": "Zhuoling.Space",
+  "platformName": "Zhuoling.Space",
+  "serviceName": "Zhuoling.Space",
+  "companyName": "Zhuoling.Space",
+  "contactEmail": {
+    "legal": "legal@zhuoling.space",
+    "privacy": "privacy@zhuoling.space",
+    "dpo": "dpo@zhuoling.space"
+  },
+  "serviceDescription": {
+    "en": "authentication and authorization services",
+    "zh": "身份验证和授权服务"
+  }
+}
+
