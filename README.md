@@ -101,6 +101,7 @@ SMTP_FROM_NAME=Your App Name
 
 # Better Auth Secret (generate a secure random string)
 BETTER_AUTH_SECRET=your-secret-key-here
+# Better Auth URL, the base URL of your app
 
 # Optional: Admin Configuration
 ADMIN_EMAIL=admin@example.com
@@ -109,12 +110,12 @@ ADMIN_PASSWORD=secure-password
 
 4. Run database migrations:
 ```bash
-npm run kysely:migrate
+npm run migrate
 ```
 
-5. Seed the database (optional):
+5. Seed the database (optional if you don't need an admin user):
 ```bash
-npm run kysely:seed
+npm run seed
 ```
 
 6. Start the development server:
@@ -208,8 +209,8 @@ OAuth clients are managed through the admin panel at `/admin/clients`. Configure
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
-- `npm run kysely:migrate` - Run database migrations
-- `npm run kysely:seed` - Seed database with initial data
+- `npm run migrate` - Run database migrations
+- `npm run seed` - Seed database with initial data
 
 ## 🔐 Security Features
 

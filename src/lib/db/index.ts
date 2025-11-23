@@ -47,10 +47,10 @@ if (databaseUrl) {
     };
 } else {
     if (!process.env.DATABASE_USER || !process.env.DATABASE_PASSWORD || !process.env.DATABASE_HOST || !process.env.DATABASE_PORT || !process.env.DATABASE_NAME) {
-        throw new Error("DATABASE_USER, DATABASE_PASSWORD, DATABASE_HOST, DATABASE_PORT, DATABASE_NAME is not set");
+        console.error("DATABASE_USER, DATABASE_PASSWORD, DATABASE_HOST, DATABASE_PORT, DATABASE_NAME is not set. \n If this is in build time would be ok, but if this is in run time, it will cause an error.");
     }
     if (process.env.DATABASE_USE_SSL === 'true' && !process.env.DATABASE_CA_CERT) {
-        throw new Error("DATABASE_CA_CERT is not set");
+        console.error("DATABASE_CA_CERT is not set. \n If this is in build time would be ok, but if this is in run time, it will cause an error.");
     }
     poolConfig = {
         user: process.env.DATABASE_USER,
