@@ -29,7 +29,6 @@ export const auth = betterAuth({
             }
         }
     },
-    trustedOrigins: [appUrl, 'http://localhost:3000'],
     emailAndPassword: {
         enabled: true,
         requireEmailVerification: true,
