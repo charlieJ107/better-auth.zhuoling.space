@@ -85,11 +85,11 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
         defaultValues: oauthClientUpdateFormDefaults,
     });
 
-    const watchedRedirectUris = watch("redirectUris") ?? [];
+    const watchedRedirectUris = watch("redirectUrls") ?? [];
     const redirectUriValues = ensureAtLeastOneRedirectUri(watchedRedirectUris);
 
     const addRedirectUri = () => {
-        setValue("redirectUris", [...redirectUriValues, ""], {
+        setValue("redirectUrls", [...redirectUriValues, ""], {
             shouldDirty: true,
             shouldTouch: true,
         });
@@ -97,7 +97,7 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
 
     const removeRedirectUri = (index: number) => {
         const nextValues = redirectUriValues.filter((_, currentIndex) => currentIndex !== index);
-        setValue("redirectUris", ensureAtLeastOneRedirectUri(nextValues), {
+        setValue("redirectUrls", ensureAtLeastOneRedirectUri(nextValues), {
             shouldDirty: true,
             shouldTouch: true,
         });
@@ -114,7 +114,7 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
         if (client) {
             reset({
                 name: client.name ?? "",
-                redirectUris: ensureAtLeastOneRedirectUri(getRedirectFieldValues(client)),
+                redirectUrls: ensureAtLeastOneRedirectUri(getRedirectFieldValues(client)),
                 icon: client.icon ?? "",
                 disabled: client.disabled ?? false,
                 type: (client.type === "web" || client.type === "public" || client.type === "mobile") 
@@ -201,11 +201,11 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
 
     const redirectUriHelperText = useMemo(() => {
         if (redirectUriError) return redirectUriError;
-        if (errors.redirectUris && !Array.isArray(errors.redirectUris) && "message" in errors.redirectUris && errors.redirectUris.message) {
-            return errors.redirectUris.message;
+        if (errors.redirectUrls && !Array.isArray(errors.redirectUrls) && "message" in errors.redirectUrls && errors.redirectUrls.message) {
+            return errors.redirectUrls.message;
         }
         return null;
-    }, [errors.redirectUris, redirectUriError]);
+    }, [errors.redirectUrls, redirectUriError]);
 
     if (isLoading || (!client && !fetchError)) {
         return (
@@ -286,12 +286,12 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                                         <div key={`redirect-uri-${index}`} className="grid grid-cols-[1fr_auto] gap-2">
                                             <Controller
                                                 control={control}
-                                                name={`redirectUris.${index}`}
+                                                name={`redirectUrls.${index}`}
                                                 render={({ field: redirectField }) => (
                                                     <Input
                                                         {...redirectField}
                                                         placeholder="https://client.example.com/callback"
-                                                        aria-invalid={Boolean(Array.isArray(errors.redirectUris) && errors.redirectUris[index]?.message)}
+                                                        aria-invalid={Boolean(Array.isArray(errors.redirectUrls) && errors.redirectUrls[index]?.message)}
                                                     />
                                                 )}
                                             />
@@ -321,7 +321,7 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                                 <FieldDescription className={redirectUriHelperText ? "text-destructive" : undefined}>
                                     {redirectUriHelperText || "Each redirect URI must be unique and use HTTPS (localhost allowed)."}
                                 </FieldDescription>
-                                {Array.isArray(errors.redirectUris) && errors.redirectUris.map((errorItem, index) => (
+                                {Array.isArray(errors.redirectUrls) && errors.redirectUrls.map((errorItem, index) => (
                                     errorItem?.message ? (
                                         <FieldDescription key={`redirect-uri-error-${index}`} className="text-destructive">
                                             {`Redirect URI #${index + 1}: ${errorItem.message}`}

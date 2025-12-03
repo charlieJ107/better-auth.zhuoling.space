@@ -7,8 +7,8 @@ import Link from "next/link";
 import { getDictionary } from "@/lib/i18n/server";
 import { getScopeDescription, trustedClients } from "@/lib/auth";
 import Logo from "@/components/logo";
-import { getClient } from "better-auth/plugins/oidc-provider";
 import { notFound } from "next/navigation";
+import { db } from "@/lib/db";
 
 interface ConsentPageProps {
   params: Promise<{ locale: Locale }>;
@@ -19,6 +19,13 @@ interface ConsentPageProps {
   }>;
 }
 
+function getClient(client_id: string) {
+  return db.selectFrom('oauthApplication')
+    .where('clientId', '=', client_id)
+    .selectAll()
+    .executeTakeFirst();
+}
+
 export default async function ConsentPage({ params, searchParams }: ConsentPageProps) {
   const { locale } = await params;
   const { consent_code, client_id, scope } = await searchParams;
@@ -26,7 +33,7 @@ export default async function ConsentPage({ params, searchParams }: ConsentPageP
   if (!client_id) {
     return notFound();
   }
-  const client = await getClient(client_id, trustedClients);
+  const client = await getClient(client_id);
   if (!client) {
     return notFound();
   }

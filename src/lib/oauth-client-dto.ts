@@ -136,7 +136,7 @@ export const oauthClientUpdateFormSchema = z.object({
             OAUTH_CLIENT_NAME_MAX_LENGTH,
             `Client name must be less than ${OAUTH_CLIENT_NAME_MAX_LENGTH} characters`
         ),
-    redirectUris: redirectUriListSchema,
+    redirectUrls: redirectUriListSchema,
     icon: optionalUrlSchema,
     disabled: z.boolean().default(false),
     type: oauthClientTypeEnum,
@@ -147,7 +147,7 @@ export type OAuthClientUpdateFormInput = z.input<typeof oauthClientUpdateFormSch
 
 export const oauthClientUpdateFormDefaults: OAuthClientUpdateFormInput = {
     name: "",
-    redirectUris: [""],
+    redirectUrls: [""],
     icon: "",
     disabled: false,
     type: "web" as const,
@@ -236,7 +236,7 @@ export function buildUpdateOAuthClientRequest(
 ): UpdateOAuthClientRequest {
     const payload = {
         name: form.name.trim(),
-        redirectURLs: normalizeRedirectUris(form.redirectUris),
+        redirectURLs: normalizeRedirectUris(form.redirectUrls),
         icon: normalizeOptionalInput(form.icon),
         disabled: form.disabled,
         type: form.type,
