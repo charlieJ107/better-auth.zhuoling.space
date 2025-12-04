@@ -145,7 +145,7 @@ export const auth = betterAuth({
             getAdditionalUserInfoClaim: async (user, scopes, client) => {
                 const claims: Record<string, any> = {};
                 if (scopes.includes('roles')) {
-                    claims.roles = user.role;
+                    claims.roles = [user.role ?? 'user'];
                 }
                 return claims;
             },
