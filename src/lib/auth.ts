@@ -140,6 +140,15 @@ export const auth = betterAuth({
             generateClientSecret,
             generateClientId,
             trustedClients,
+            // Disable eslint no unused variables
+            /* eslint-disable @typescript-eslint/no-unused-vars */
+            getAdditionalUserInfoClaim: async (user, scopes, client) => {
+                const claims: Record<string, any> = {};
+                if (scopes.includes('roles')) {
+                    claims.roles = user.role;
+                }
+                return claims;
+            },
         }),
         lastLoginMethod({
             storeInDatabase: true
