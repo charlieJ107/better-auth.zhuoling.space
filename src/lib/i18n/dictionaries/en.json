@@ -105,7 +105,8 @@
         "openid": "Verify your identity",
         "profile": "Access your profile information (name, username)",
         "email": "Access your email address",
-        "offline_access": "Maintain access when you're not present"
+        "offline_access": "Maintain access when you're not present",
+        "roles": "Access your role information (e.g., admin, user) to determine your permissions in the application"
       },
       "authorize": "Authorize",
       "deny": "Deny",
