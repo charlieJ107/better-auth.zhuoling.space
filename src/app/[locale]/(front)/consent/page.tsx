@@ -5,7 +5,7 @@ import { Locale } from "@/lib/i18n";
 import { ConsentForm } from "./consent-form";
 import Link from "next/link";
 import { getDictionary } from "@/lib/i18n/server";
-import { getScopeDescription, trustedClients } from "@/lib/auth";
+import { getScopeDescription } from "@/lib/auth";
 import Logo from "@/components/logo";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -110,8 +110,7 @@ export default async function ConsentPage({ params, searchParams }: ConsentPageP
       <div className="flex w-full max-w-md flex-col gap-6">
         <div className="flex items-center justify-center">
           <Link href={`/${locale}`} className="flex items-center gap-2 font-medium">
-            <Logo className="size-6" />
-            {dict.common.appName}
+            <Logo className="flex items-center gap-2 font-medium" />
           </Link>
         </div>
         <div className="flex flex-col gap-6">
