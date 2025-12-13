@@ -44,15 +44,19 @@ export async function GET(request: NextRequest) {
 
         const clients = await query.execute();
 
-        const normalizedClients = clients.map(({ redirectURLs, ...rest }) => {
-            const redirectArray = redirectURLs
-                ? redirectURLs.split(",").map((uri) => uri.trim()).filter(Boolean)
+        // Database field is redirectUrls (lowercase s) after migration
+        const normalizedClients = clients.map((client) => {
+            const redirectUrlsValue = client.redirectUrls || '';
+            const redirectArray = redirectUrlsValue
+                ? redirectUrlsValue.split(",").map((uri: string) => uri.trim()).filter(Boolean)
                 : [];
+
+            const { redirectUrls, ...rest } = client;
 
             return {
                 ...rest,
                 redirectURIs: redirectArray,
-                redirectURLsRaw: redirectURLs,
+                redirectURLsRaw: redirectUrlsValue,
             };
         });
 

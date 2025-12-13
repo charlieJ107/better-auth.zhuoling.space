@@ -34,14 +34,15 @@ export async function GET(request: NextRequest, { params }: {
             return NextResponse.json({ error: 'Client not found' }, { status: 404 });
         }
 
-        const redirectArray = client.redirectURLs
-            ? client.redirectURLs.split(',').map((uri) => uri.trim()).filter(Boolean)
+        // Database field is redirectUrls (lowercase s) after migration
+        const redirectArray = client.redirectUrls
+            ? client.redirectUrls.split(',').map((uri: string) => uri.trim()).filter(Boolean)
             : [];
 
         return NextResponse.json({
             ...client,
             redirectURIs: redirectArray,
-            redirectURLsRaw: client.redirectURLs,
+            redirectURLsRaw: client.redirectUrls,
         });
     } catch (error) {
         console.error('Error fetching OAuth client:', error);
@@ -83,7 +84,10 @@ export async function PATCH(request: NextRequest, { params }: {
         };
 
         if (name !== undefined) updateData.name = name;
-        if (redirectURIs !== undefined) updateData.redirectURLs = normalizedRedirects.join(',');
+        if (redirectURIs !== undefined) {
+            // Database field is redirectUrls (lowercase s) after migration
+            updateData.redirectUrls = normalizedRedirects.join(',');
+        }
         if (icon !== undefined) updateData.icon = normalizeOptionalInput(icon);
         if (metadata !== undefined) updateData.metadata = metadata;
         if (disabled !== undefined) updateData.disabled = disabled;
@@ -108,14 +112,16 @@ export async function PATCH(request: NextRequest, { params }: {
             return NextResponse.json({ error: 'Client not found' }, { status: 404 });
         }
 
-        const redirectArray = updatedClient.redirectURLs
-            ? updatedClient.redirectURLs.split(',').map((uri) => uri.trim()).filter(Boolean)
+        // Database field is redirectUrls (lowercase s) after migration
+        const redirectUrlsValue = updatedClient.redirectUrls || '';
+        const redirectArray = redirectUrlsValue
+            ? redirectUrlsValue.split(',').map((uri: string) => uri.trim()).filter(Boolean)
             : [];
 
         return NextResponse.json({
             ...updatedClient,
             redirectURIs: redirectArray,
-            redirectURLsRaw: updatedClient.redirectURLs,
+            redirectURLsRaw: redirectUrlsValue,
         });
     } catch (error) {
         console.error('Error updating OAuth client:', error);
