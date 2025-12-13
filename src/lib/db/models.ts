@@ -79,7 +79,7 @@ export const zOAuthApplication = z.object({
   metadata: z.string().optional(),
   clientId: z.string(),
   clientSecret: z.string().optional(),
-  redirectUrls: z.string(), // Note: database column is redirectUrls (lowercase s) after migration
+  redirectUrls: z.string(), // Note: database column is redirectUrls (changed from redirectURLs) after migration
   type: z.string(),
   disabled: z.boolean().optional(),
   userId: z.string().optional(),

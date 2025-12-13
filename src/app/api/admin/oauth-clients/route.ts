@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
         const clients = await query.execute();
 
-        // Database field is redirectUrls (lowercase s) after migration
+        // Database field is redirectUrls (changed from redirectURLs) after migration
         const normalizedClients = clients.map((client) => {
             const redirectUrlsValue = client.redirectUrls || '';
             const redirectArray = redirectUrlsValue

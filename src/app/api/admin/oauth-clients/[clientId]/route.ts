@@ -34,15 +34,17 @@ export async function GET(request: NextRequest, { params }: {
             return NextResponse.json({ error: 'Client not found' }, { status: 404 });
         }
 
-        // Database field is redirectUrls (lowercase s) after migration
-        const redirectArray = client.redirectUrls
-            ? client.redirectUrls.split(',').map((uri: string) => uri.trim()).filter(Boolean)
+        // Database field is redirectUrls (changed from redirectURLs) after migration
+        const redirectUrlsValue = client.redirectUrls || '';
+        const redirectArray = redirectUrlsValue
+            ? redirectUrlsValue.split(',').map((uri: string) => uri.trim()).filter(Boolean)
             : [];
 
+        const { redirectUrls, ...rest } = client;
         return NextResponse.json({
-            ...client,
+            ...rest,
             redirectURIs: redirectArray,
-            redirectURLsRaw: client.redirectUrls,
+            redirectURLsRaw: redirectUrlsValue,
         });
     } catch (error) {
         console.error('Error fetching OAuth client:', error);
@@ -85,7 +87,7 @@ export async function PATCH(request: NextRequest, { params }: {
 
         if (name !== undefined) updateData.name = name;
         if (redirectURIs !== undefined) {
-            // Database field is redirectUrls (lowercase s) after migration
+            // Database field is redirectUrls (changed from redirectURLs) after migration
             updateData.redirectUrls = normalizedRedirects.join(',');
         }
         if (icon !== undefined) updateData.icon = normalizeOptionalInput(icon);
@@ -112,7 +114,7 @@ export async function PATCH(request: NextRequest, { params }: {
             return NextResponse.json({ error: 'Client not found' }, { status: 404 });
         }
 
-        // Database field is redirectUrls (lowercase s) after migration
+        // Database field is redirectUrls (changed from redirectURLs) after migration
         const redirectUrlsValue = updatedClient.redirectUrls || '';
         const redirectArray = redirectUrlsValue
             ? redirectUrlsValue.split(',').map((uri: string) => uri.trim()).filter(Boolean)
