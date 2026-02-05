@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,116 +20,63 @@ import {
     ChevronLeft,
     ChevronRight,
     Key,
-    Globe
 } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import Image from "next/image";
+import { authClient } from "@/lib/auth-client";
+import { useOAuthClients, type OAuthClientRow } from "@/hooks/use-oauth-clients";
 
-interface OAuthClient {
-    id: string;
-    name: string;
-    clientId: string;
-    clientSecret?: string;
-    redirectURIs: string[];
-    type: string;
-    disabled?: boolean;
-    icon?: string;
-    metadata?: string;
-    createdAt: string;
-    updatedAt: string;
-}
+const PAGE_SIZE = 10;
 
-interface ClientsResponse {
-    clients: OAuthClient[];
-    total: number;
-    limit: number;
-    offset: number;
+function formatDate(value: string | number | Date | undefined): string {
+    if (value == null) return "—";
+    return new Date(value).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 }
 
 export function OAuthClientsTable() {
-    const [clients, setClients] = useState<OAuthClient[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { clients: allClients, isLoading, error, mutate } = useOAuthClients();
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(0);
-    const [totalClients, setTotalClients] = useState(0);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [clientToDelete, setClientToDelete] = useState<string | null>(null);
 
-    const limit = 100;
-    const totalPages = Math.ceil(totalClients / limit);
+    const filteredClients = useMemo(() => {
+        if (!searchTerm.trim()) return allClients;
+        const q = searchTerm.toLowerCase();
+        return allClients.filter(
+            (c) =>
+                (c.client_name ?? "").toLowerCase().includes(q) ||
+                (c.client_id ?? "").toLowerCase().includes(q)
+        );
+    }, [allClients, searchTerm]);
 
-    const fetchClients = async (page = 0, search = "") => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const params = new URLSearchParams({
-                limit: limit.toString(),
-                offset: (page * limit).toString(),
-            });
-
-            if (search) {
-                params.append('search', search);
-            }
-
-            const response = await fetch(`/api/admin/oauth-clients?${params}`);
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch OAuth clients');
-            }
-
-            const data: ClientsResponse = await response.json();
-            setClients(data.clients);
-            setTotalClients(data.total);
-        } catch (err) {
-            console.error('Error fetching OAuth clients:', err);
-            setError(err instanceof Error ? err.message : 'Failed to fetch OAuth clients');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const totalClients = filteredClients.length;
+    const totalPages = Math.max(1, Math.ceil(totalClients / PAGE_SIZE));
+    const paginatedClients = useMemo(
+        () =>
+            filteredClients.slice(
+                currentPage * PAGE_SIZE,
+                currentPage * PAGE_SIZE + PAGE_SIZE
+            ),
+        [filteredClients, currentPage]
+    );
 
     const handleSearch = (value: string) => {
         setSearchTerm(value);
         setCurrentPage(0);
-        fetchClients(0, value);
     };
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page);
-        fetchClients(page, searchTerm);
-    };
-
-    const handleToggleDisabled = async (clientId: string, currentDisabled: boolean) => {
-        try {
-            setActionLoading(clientId);
-
-            const response = await fetch(`/api/admin/oauth-clients/${clientId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    disabled: !currentDisabled
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update client status');
-            }
-
-            // Refresh the clients list
-            await fetchClients(currentPage, searchTerm);
-        } catch (err) {
-            console.error('Error updating client status:', err);
-            setError(err instanceof Error ? err.message : 'Failed to update client');
-        } finally {
-            setActionLoading(null);
-        }
     };
 
     const handleDeleteClient = (clientId: string) => {
@@ -143,38 +90,22 @@ export function OAuthClientsTable() {
         try {
             setActionLoading(clientToDelete);
 
-            const response = await fetch(`/api/admin/oauth-clients/${clientToDelete}`, {
-                method: 'DELETE'
+            const result = await authClient.oauth2.deleteClient({
+                client_id: clientToDelete,
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to delete client');
+            if (result.error) {
+                throw new Error(result.error.message ?? "Failed to delete client");
             }
 
-            // Refresh the clients list
-            await fetchClients(currentPage, searchTerm);
+            await mutate();
             setDeleteDialogOpen(false);
             setClientToDelete(null);
         } catch (err) {
-            console.error('Error deleting client:', err);
-            setError(err instanceof Error ? err.message : 'Failed to delete client');
+            console.error("Error deleting client:", err);
         } finally {
             setActionLoading(null);
         }
-    };
-
-    useEffect(() => {
-        fetchClients();
-    }, []);
-
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
     };
 
     return (
@@ -213,7 +144,7 @@ export function OAuthClientsTable() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {loading ? (
+                    {isLoading ? (
                         <div className="space-y-4">
                             {[...Array(5)].map((_, i) => (
                                 <div key={i} className="flex items-center space-x-4 p-4 border rounded-lg">
@@ -228,39 +159,39 @@ export function OAuthClientsTable() {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {clients.map((client) => (
-                                <div key={client.id} className="flex items-center justify-between p-4 border rounded-lg">
+                            {paginatedClients.map((client: OAuthClientRow) => (
+                                <div key={client.client_id} className="flex items-center justify-between p-4 border rounded-lg">
                                     <div className="flex items-center space-x-4">
                                         <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
-                                            {client.icon ? (
-                                                <Image src={client.icon} alt={client.name} className="h-8 w-8 rounded-full" width={32} height={32} />
+                                            {client.logo_uri ? (
+                                                <Image src={client.logo_uri} alt={client.client_name ?? client.client_id} className="h-8 w-8 rounded-full" width={32} height={32} />
                                             ) : (
                                                 <Key className="h-5 w-5 text-primary" />
                                             )}
                                         </div>
                                         <div>
-                                            <div className="font-medium">{client.name}</div>
+                                            <div className="font-medium">{client.client_name ?? client.client_id}</div>
                                             <div className="text-sm text-muted-foreground">
-                                                Client ID: {client.clientId}
+                                                Client ID: {client.client_id}
                                             </div>
                                             <div className="text-xs text-muted-foreground">
-                                                Created: {formatDate(client.createdAt)}
+                                                Created: {formatDate((client as { createdAt?: string }).createdAt)}
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className="flex items-center space-x-2">
-                                        <Badge variant={client.type === 'confidential' ? 'default' : 'secondary'}>
-                                            {client.type}
+                                        <Badge variant={client.public ? "secondary" : "default"}>
+                                            {client.type ?? "web"}
                                         </Badge>
 
-                                        <Badge variant={client.disabled ? 'destructive' : 'default'}>
-                                            {client.disabled ? 'Disabled' : 'Enabled'}
+                                        <Badge variant={client.disabled ? "destructive" : "default"}>
+                                            {client.disabled ? "Disabled" : "Enabled"}
                                         </Badge>
 
-                                        {client.clientSecret && (
+                                        {client.client_secret && (
                                             <Badge variant="outline" className="font-mono text-xs">
-                                                {client.clientSecret}
+                                                Confidential
                                             </Badge>
                                         )}
 
@@ -269,37 +200,21 @@ export function OAuthClientsTable() {
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    disabled={actionLoading === client.clientId}
+                                                    disabled={actionLoading === client.client_id}
                                                 >
                                                     <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem asChild>
-                                                    <Link href={`/admin/clients/${client.clientId}`}>
+                                                    <Link href={`/admin/clients/${client.client_id}`}>
                                                         <Eye className="h-4 w-4 mr-2" />
                                                         View Details
                                                     </Link>
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem
-                                                    onClick={() => handleToggleDisabled(client.clientId, client.disabled || false)}
-                                                    disabled={actionLoading === client.clientId}
-                                                >
-                                                    {client.disabled ? (
-                                                        <>
-                                                            <Globe className="h-4 w-4 mr-2" />
-                                                            Enable Client
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Globe className="h-4 w-4 mr-2" />
-                                                            Disable Client
-                                                        </>
-                                                    )}
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    onClick={() => handleDeleteClient(client.clientId)}
-                                                    disabled={actionLoading === client.clientId}
+                                                    onClick={() => handleDeleteClient(client.client_id)}
+                                                    disabled={actionLoading === client.client_id}
                                                     className="text-destructive"
                                                 >
                                                     <Trash2 className="h-4 w-4 mr-2" />
@@ -311,7 +226,7 @@ export function OAuthClientsTable() {
                                 </div>
                             ))}
 
-                            {clients.length === 0 && (
+                            {paginatedClients.length === 0 && (
                                 <div className="text-center py-8 text-muted-foreground">
                                     No OAuth clients found
                                 </div>
@@ -322,7 +237,7 @@ export function OAuthClientsTable() {
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between mt-6">
                             <div className="text-sm text-muted-foreground">
-                                Showing {currentPage * limit + 1} to {Math.min((currentPage + 1) * limit, totalClients)} of {totalClients} clients
+                                Showing {currentPage * PAGE_SIZE + 1} to {Math.min((currentPage + 1) * PAGE_SIZE, totalClients)} of {totalClients} clients
                             </div>
                             <div className="flex items-center space-x-2">
                                 <Button

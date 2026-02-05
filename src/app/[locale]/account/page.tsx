@@ -63,7 +63,6 @@ export default async function AccountDashboard({ params }: AccountDashboardProps
     db.selectFrom('oauthConsent')
       .select(sql`count(*)::int`.as('count'))
       .where('userId', '=', user.id)
-      .where('consentGiven', '=', true)
       .$narrowType<{ count: number }>()
       .executeTakeFirst()
       .then(result => result?.count ?? 0),

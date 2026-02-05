@@ -1,11 +1,11 @@
 import { betterAuth, User, GenericEndpointContext } from "better-auth";
-import { admin, anonymous, apiKey, Client, emailOTP, jwt, lastLoginMethod, magicLink, oidcProvider, organization, phoneNumber, twoFactor, username } from "better-auth/plugins";
+import { admin, anonymous, apiKey, emailOTP, jwt, lastLoginMethod, magicLink, organization, phoneNumber, twoFactor, username } from "better-auth/plugins";
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey"
 import { sendEmailVerification, sendPasswordReset, sendMagicLink, sendOTP } from "./email";
 import { Locale, locales } from "./i18n";
 import { defaultLocale } from "./i18n/common";
 import { db, pool } from "./db";
-import { generateClientId, generateClientSecret } from "./oauth-clients";
 import { getBrandingValue } from "./branding";
 
 
@@ -15,8 +15,6 @@ const appName = getBrandingValue('appName');
 if (!appName || !appUrl) {
     throw new Error("Branding appName or BETTER_AUTH_URL is not set");
 }
-
-export const trustedClients: (Client & { skipConsent?: boolean })[] = []
 
 export const auth = betterAuth({
     appName: appName,
@@ -128,24 +126,17 @@ export const auth = betterAuth({
         }),
         apiKey(),
         organization(),
-        oidcProvider({
-            metadata: {
-                issuer: appUrl,
-            },
+        oauthProvider({
             scopes: ["openid", "profile", "email", "offline_access", "roles"],
-            useJWTPlugin: true, // Enable JWT plugin integration
-            allowDynamicClientRegistration: false,
             loginPage: "/login",
             consentPage: "/consent",
-            generateClientSecret,
-            generateClientId,
-            trustedClients,
-            // Disable eslint no unused variables
-            /* eslint-disable @typescript-eslint/no-unused-vars */
-            getAdditionalUserInfoClaim: async (user, scopes, client) => {
-                const claims: Record<string, any> = {};
-                if (scopes.includes('roles')) {
-                    claims.roles = [user.role ?? 'user'];
+            customUserInfoClaims: async (info) => {
+                const claims: Record<string, unknown> = {};
+                const scopesArray = Array.isArray(info.scopes) ? info.scopes : (info.scopes ? [info.scopes] : []);
+                if (scopesArray.includes('roles')) {
+                    // Get role from user metadata or default to 'user'
+                    const userRole = (info.user as User & { role?: string }).role ?? 'user';
+                    claims.roles = [userRole];
                 }
                 return claims;
             },

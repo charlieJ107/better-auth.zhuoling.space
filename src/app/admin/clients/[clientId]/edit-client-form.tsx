@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,16 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CircleAlert, CheckCircle, Loader2, RefreshCw, Eye, EyeOff, Plus, X, ChevronDown } from "lucide-react";
 import { ConfirmationDialog, SecretDisplayDialog } from "@/components/confirmation-dialog";
-import {
-    formatRedirectUris,
-    OAuthClientApiDTO,
-    validateRedirectUris,
-} from "@/lib/oauth-clients";
-import useSWR from "swr";
-import { fetcher } from "@/lib/utils";
+import { authClient } from "@/lib/auth-client";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,33 +20,56 @@ import {
     DropdownMenuRadioItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-    oauthClientUpdateFormSchema,
-    type OAuthClientUpdateFormInput,
-    oauthClientUpdateFormDefaults,
-    buildUpdateOAuthClientRequest,
-    ensureAtLeastOneRedirectUri,
-} from "@/lib/oauth-client-dto";
+import { z } from "zod";
 import { Route } from "next";
+import { OAuthClient } from "@better-auth/oauth-provider";
+
+type OAuthClientData = OAuthClient;
 
 interface EditOAuthClientFormProps {
     clientId: string;
 }
 
-function getRedirectFieldValues(client?: OAuthClientApiDTO): string[] {
-    if (!client) {
+// Form schema
+const oauthClientUpdateFormSchema = z.object({
+    client_name: z.string().min(1, "Client name is required").max(256, "Client name must be less than 256 characters"),
+    redirectUrls: z.array(z.url("Invalid URL")).min(1, "At least one redirect URI is required"),
+    icon: z.url("Invalid URL").optional().or(z.literal("")),
+    type: z.enum(["web", "native", "user-agent-based"]),
+});
+
+type OAuthClientUpdateFormInput = z.infer<typeof oauthClientUpdateFormSchema>;
+
+const oauthClientUpdateFormDefaults: OAuthClientUpdateFormInput = {
+    client_name: "",
+    redirectUrls: [""],
+    icon: undefined,
+    type: "web",
+};
+
+function ensureAtLeastOneRedirectUri(values: string[]): string[] {
+    if (!values.length) {
         return [""];
     }
+    return values;
+}
 
-    const redirectArray = Array.isArray(client.redirectURIs)
-        ? client.redirectURIs
-        : formatRedirectUris(client.redirectURLsRaw ?? "");
 
-    if (!redirectArray.length) {
-        return [""];
-    }
 
+function getRedirectFieldValues(client: OAuthClient | null): string[] {
+    if (!client) return [""];
+    const redirectArray = Array.isArray((client as OAuthClientData).redirect_uris)
+        ? (client as OAuthClientData).redirect_uris
+        : [];
+    if (!redirectArray.length) return [""];
     return redirectArray;
+}
+
+function formatClientDate(value: unknown): string {
+    if (value == null) return "—";
+    if (typeof value === "string" || typeof value === "number") return new Date(value).toLocaleDateString();
+    if (value instanceof Date) return value.toLocaleDateString();
+    return "—";
 }
 
 export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
@@ -66,12 +83,14 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
     const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
     const [redirectUriError, setRedirectUriError] = useState<string | null>(null);
 
-    const {
-        data: client,
-        error: fetchError,
-        isLoading,
-        mutate,
-    } = useSWR<OAuthClientApiDTO>(`/api/admin/oauth-clients/${clientId}`, fetcher);
+    const fetcher = async (id: string) => {
+        const result = await authClient.oauth2.getClient({ query: { client_id: id } });
+        if (result.error) throw new Error(result.error.message ?? "Failed to load client");
+        return result.data as OAuthClientData;
+    };
+    const { data: client, error: fetchError, isLoading, mutate: mutateClient } = useSWR(clientId ? ["oauth-client", clientId] : null, () => fetcher(clientId!), {
+        revalidateOnFocus: false,
+    });
 
     const {
         control,
@@ -104,21 +123,13 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
     };
 
     useEffect(() => {
-        if (fetchError) {
-            const message = fetchError instanceof Error ? fetchError.message : "Failed to load client";
-            setServerError(message);
-        }
-    }, [fetchError]);
-
-    useEffect(() => {
         if (client) {
             reset({
-                name: client.name ?? "",
+                client_name: client.client_name ?? "",
                 redirectUrls: ensureAtLeastOneRedirectUri(getRedirectFieldValues(client)),
-                icon: client.icon ?? "",
-                disabled: client.disabled ?? false,
-                type: (client.type === "web" || client.type === "public" || client.type === "mobile") 
-                    ? client.type 
+                icon: client.logo_uri ?? "",
+                type: (client.type === "web" || client.type === "native" || client.type === "user-agent-based")
+                    ? client.type
                     : "web",
             });
             setServerError(null);
@@ -129,38 +140,58 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
         setServerError(null);
         setRedirectUriError(null);
 
-        const parsedValues = oauthClientUpdateFormSchema.parse(values);
-        const payload = buildUpdateOAuthClientRequest(parsedValues);
-        const redirectUris = payload.redirectURIs;
+        // Normalize redirect URIs
+        const redirectUris = values.redirectUrls
+            .map(uri => uri.trim())
+            .filter(Boolean);
 
-        const redirectValidation = validateRedirectUris(redirectUris);
-        if (!redirectValidation.valid) {
-            setRedirectUriError(redirectValidation.errors.join("\n"));
+        // Basic validation
+        if (redirectUris.length === 0) {
+            setRedirectUriError("At least one redirect URI is required");
+            return;
+        }
+
+        // Validate redirect URIs
+        const invalidUris: string[] = [];
+        for (const uri of redirectUris) {
+            try {
+                const url = new URL(uri);
+                if (url.protocol !== 'https:' && url.protocol !== 'http:' && !url.hostname.includes('localhost') && !url.hostname.includes('127.0.0.1')) {
+                    invalidUris.push(`${uri} must use HTTPS (or HTTP for localhost)`);
+                }
+            } catch {
+                invalidUris.push(`${uri} is not a valid URL`);
+            }
+        }
+
+        if (invalidUris.length > 0) {
+            setRedirectUriError(invalidUris.join("\n"));
             return;
         }
 
         try {
-            const response = await fetch(`/api/admin/oauth-clients/${clientId}`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
+            const result = await authClient.oauth2.updateClient({
+                client_id: clientId,
+                update: {
+                    client_name: values.client_name.trim(),
+                    redirect_uris: redirectUris,
+                    logo_uri: values.icon?.trim() || undefined,
                 },
-                body: JSON.stringify(payload),
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: "Failed to update OAuth client" }));
-                throw new Error(errorData.error || "Failed to update OAuth client");
+            if (result.error) {
+                setServerError(result.error.message ?? "Failed to update OAuth client");
+                return;
             }
 
-            const updatedClient: OAuthClientApiDTO = await response.json();
-            mutate(updatedClient, false);
-            setSuccess(true);
-            setTimeout(() => setSuccess(false), 3000);
+            if (result.data) {
+                await mutateClient(result.data as OAuthClientData);
+                setSuccess(true);
+                setTimeout(() => setSuccess(false), 3000);
+            }
         } catch (error) {
             console.error("Error updating OAuth client:", error);
-            const message = error instanceof Error ? error.message : "Failed to update OAuth client";
-            setServerError(message);
+            setServerError(error instanceof Error ? error.message : "Failed to update OAuth client");
         }
     };
 
@@ -173,27 +204,26 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
             setRegeneratingSecret(true);
             setRotateConfirmOpen(false);
 
-            const response = await fetch(`/api/admin/oauth-clients/${clientId}/regenerate-secret`, {
-                method: "POST",
+            const result = await authClient.oauth2.client.rotateSecret({
+                client_id: clientId,
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to regenerate client secret");
+            if (result.error) {
+                setServerError(result.error.message ?? "Failed to regenerate client secret");
+                return;
             }
 
-            const data = await response.json();
-            setNewSecret(data.clientSecret);
-            setSecretDialogOpen(true);
-
-            const clientResponse = await fetch(`/api/admin/oauth-clients/${clientId}`);
-            if (clientResponse.ok) {
-                const updatedClient: OAuthClientApiDTO = await clientResponse.json();
-                mutate(updatedClient, false);
+            if (result.data) {
+                const data = result.data as OAuthClientData;
+                const secret = data.client_secret;
+                if (secret) {
+                    setNewSecret(secret);
+                    setSecretDialogOpen(true);
+                }
+                await mutateClient(result.data as OAuthClientData);
             }
-        } catch (error) {
-            console.error("Error regenerating client secret:", error);
-            const message = error instanceof Error ? error.message : "Failed to regenerate client secret";
-            setServerError(message);
+        } catch (err) {
+            setServerError(err instanceof Error ? err.message : "Failed to regenerate client secret");
         } finally {
             setRegeneratingSecret(false);
         }
@@ -218,19 +248,25 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
         );
     }
 
-    if (!client) {
+    if (fetchError || !client) {
         return (
             <Card className="max-w-2xl">
                 <CardContent>
                     <Alert variant="destructive">
                         <CircleAlert className="h-4 w-4" />
                         <AlertTitle>Client Not Found</AlertTitle>
-                        <AlertDescription>The requested OAuth client could not be found.</AlertDescription>
+                        <AlertDescription>
+                            {fetchError?.message ?? "The requested OAuth client could not be found."}
+                        </AlertDescription>
                     </Alert>
                 </CardContent>
             </Card>
         );
     }
+
+    const clientIdValue = client.client_id ?? "";
+    const clientSecretValue = client.client_secret ?? "";
+    const clientNameValue = client.client_name ?? "";
 
     return (
         <div className="space-y-6">
@@ -261,21 +297,21 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
 
                         <FieldGroup>
                             <Field>
-                                <FieldLabel htmlFor="name">Client Name *</FieldLabel>
+                                <FieldLabel htmlFor="client_name">Client Name *</FieldLabel>
                                 <Controller
                                     control={control}
-                                    name="name"
+                                    name="client_name"
                                     render={({ field }) => (
                                         <Input
                                             {...field}
-                                            id="name"
+                                            id="client_name"
                                             placeholder="My OAuth Client"
-                                            aria-invalid={Boolean(errors.name)}
+                                            aria-invalid={Boolean(errors.client_name)}
                                         />
                                     )}
                                 />
-                                <FieldDescription className={errors.name ? "text-destructive" : undefined}>
-                                    {errors.name?.message ?? "Provide a descriptive name to identify this client."}
+                                <FieldDescription className={errors.client_name ? "text-destructive" : undefined}>
+                                    {errors.client_name?.message ?? "Provide a descriptive name to identify this client."}
                                 </FieldDescription>
                             </Field>
 
@@ -366,7 +402,7 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                                                     <ChevronDown className="h-4 w-4 opacity-50" />
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                                            <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width)">
                                                 <DropdownMenuRadioGroup
                                                     value={field.value}
                                                     onValueChange={field.onChange}
@@ -374,11 +410,11 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                                                     <DropdownMenuRadioItem value="web">
                                                         Web
                                                     </DropdownMenuRadioItem>
-                                                    <DropdownMenuRadioItem value="public">
-                                                        Public
+                                                    <DropdownMenuRadioItem value="native">
+                                                        Native
                                                     </DropdownMenuRadioItem>
-                                                    <DropdownMenuRadioItem value="mobile">
-                                                        Mobile
+                                                    <DropdownMenuRadioItem value="user-agent-based">
+                                                        User-agent based
                                                     </DropdownMenuRadioItem>
                                                 </DropdownMenuRadioGroup>
                                             </DropdownMenuContent>
@@ -386,29 +422,10 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                                     )}
                                 />
                                 <FieldDescription className={errors.type ? "text-destructive" : undefined}>
-                                    {errors.type?.message ?? "The type of OAuth client (web, public, or mobile)."}
+                                    {errors.type?.message ?? "The type of OAuth client (web, native, or user-agent-based)."}
                                 </FieldDescription>
                             </Field>
 
-                            <Field>
-                                <div className="flex items-center space-x-2">
-                                    <Controller
-                                        control={control}
-                                        name="disabled"
-                                        render={({ field }) => (
-                                            <Checkbox
-                                                id="disabled"
-                                                checked={field.value ?? false}
-                                                onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-                                            />
-                                        )}
-                                    />
-                                    <FieldLabel htmlFor="disabled">Disabled</FieldLabel>
-                                </div>
-                                <FieldDescription>
-                                    Disable this OAuth client from being used
-                                </FieldDescription>
-                            </Field>
                         </FieldGroup>
 
                         <div className="flex items-center justify-between">
@@ -416,7 +433,7 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                                 type="button"
                                 variant="outline"
                                 onClick={handleRegenerateSecret}
-                                disabled={regeneratingSecret || !client.clientSecret}
+                                disabled={regeneratingSecret || !clientSecretValue}
                             >
                                 <RefreshCw className={`h-4 w-4 mr-2 ${regeneratingSecret ? "animate-spin" : ""}`} />
                                 Regenerate Secret
@@ -446,14 +463,14 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                 <CardContent className="space-y-2">
                     <div className="flex justify-between">
                         <span>Client ID:</span>
-                        <code className="text-sm bg-muted px-2 py-1 rounded">{client.clientId}</code>
+                        <code className="text-sm bg-muted px-2 py-1 rounded">{clientIdValue}</code>
                     </div>
-                    {client.clientSecret && (
+                    {clientSecretValue && (
                         <div className="flex justify-between items-center">
                             <span>Client Secret:</span>
                             <div className="flex items-center gap-2">
                                 <code className="text-sm bg-muted px-2 py-1 rounded">
-                                    {client.clientSecret}
+                                    {showSecret ? clientSecretValue : '••••••••'}
                                 </code>
                                 <Button
                                     variant="ghost"
@@ -478,11 +495,11 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                     </div>
                     <div className="flex justify-between">
                         <span>Created:</span>
-                        <span>{new Date(client.createdAt).toLocaleDateString()}</span>
+                        <span>{formatClientDate((client as Record<string, unknown>).createdAt ?? (client as Record<string, unknown>).created_at)}</span>
                     </div>
                     <div className="flex justify-between">
                         <span>Last Updated:</span>
-                        <span>{new Date(client.updatedAt).toLocaleDateString()}</span>
+                        <span>{formatClientDate((client as Record<string, unknown>).updatedAt ?? (client as Record<string, unknown>).updated_at)}</span>
                     </div>
                 </CardContent>
             </Card>
@@ -503,8 +520,8 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                 <SecretDisplayDialog
                     open={secretDialogOpen}
                     onOpenChange={setSecretDialogOpen}
-                    clientName={client.name}
-                    clientId={client.clientId}
+                    clientName={clientNameValue}
+                    clientId={clientIdValue}
                     clientSecret={newSecret}
                 />
             )}
