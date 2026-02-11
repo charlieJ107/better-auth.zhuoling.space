@@ -7,7 +7,7 @@ import type {
 } from './types';
 import { loadEmailTemplate } from './templates/loader';
 import type { EmailTemplateData, OTPTemplateData, EmailTemplateType } from './templates/types';
-import { getBrandingConfig } from '../branding';
+import { getBrandingConfig } from '../branding-server';
 
 // Get email configuration from environment variables
 function getEmailConfig(): EmailConfig {

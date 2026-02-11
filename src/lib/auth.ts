@@ -6,7 +6,7 @@ import { sendEmailVerification, sendPasswordReset, sendMagicLink, sendOTP } from
 import { Locale, locales } from "./i18n";
 import { defaultLocale } from "./i18n/common";
 import { db, pool } from "./db";
-import { getBrandingValue } from "./branding";
+import { getBrandingValue } from "./branding-server";
 
 
 

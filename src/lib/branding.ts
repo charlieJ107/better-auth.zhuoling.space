@@ -1,10 +1,7 @@
 /**
- * Branding configuration system
- * Loads branding information from environment variables, branding.json, or default values
+ * Branding configuration (client-safe).
+ * Uses environment variables or defaults only. For server-only file (branding.json) support, use @/lib/branding-server.
  */
-
-import fs from 'fs';
-import path from 'path';
 
 export interface BrandingConfig {
   appName: string;              // Application name, e.g., "Zhuoling.Space"
@@ -38,29 +35,6 @@ const defaultBranding: BrandingConfig = {
     zh: "身份验证和授权服务",
   },
 };
-
-/**
- * Load branding configuration from file
- */
-function loadBrandingFromFile(): BrandingConfig | null {
-  try {
-    // Try to load from branding.json in the project root
-    // Using dynamic import for Node.js modules in Next.js
-    if (typeof window === 'undefined') {
-      const brandingPath = path.join(process.cwd(), 'branding.json');
-      
-      if (fs.existsSync(brandingPath)) {
-        const content = fs.readFileSync(brandingPath, 'utf-8');
-        const config = JSON.parse(content);
-        return config as BrandingConfig;
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to load branding.json:', error);
-  }
-  
-  return null;
-}
 
 /**
  * Load branding configuration from environment variables
@@ -105,7 +79,7 @@ function loadBrandingFromEnv(): BrandingConfig | null {
 
 /**
  * Get branding configuration
- * Priority: Environment variables > branding.json > default
+ * Priority: Environment variables > default.
  */
 let cachedBranding: BrandingConfig | null = null;
 
@@ -114,20 +88,12 @@ export function getBrandingConfig(): BrandingConfig {
     return cachedBranding;
   }
   
-  // Try environment variables first (highest priority)
   const envConfig = loadBrandingFromEnv();
   if (envConfig) {
     cachedBranding = envConfig;
     return cachedBranding;
   }
-  
-  // Try branding.json file
-  const fileConfig = loadBrandingFromFile();
-  if (fileConfig) {
-    cachedBranding = fileConfig;
-    return cachedBranding;
-  }
-  
+
   // Fallback to default
   cachedBranding = defaultBranding;
   return cachedBranding;
