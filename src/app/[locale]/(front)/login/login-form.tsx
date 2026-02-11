@@ -110,7 +110,7 @@ export function LoginForm({ locale, callbackURL }: { locale: Locale, callbackURL
                     <Input id="password" type="password" name="password" required />
                 </Field>
                 <Field>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                         <Checkbox id="rememberMe" name="rememberMe" />
                         <FieldLabel htmlFor="rememberMe">{t('common.rememberMe')}</FieldLabel>
                     </div>
