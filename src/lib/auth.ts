@@ -127,6 +127,7 @@ export const auth = betterAuth({
         apiKey(),
         organization(),
         oauthProvider({
+            issuer: appUrl,
             scopes: ["openid", "profile", "email", "offline_access", "roles"],
             loginPage: "/login",
             consentPage: "/consent",
@@ -140,6 +141,9 @@ export const auth = betterAuth({
                 }
                 return claims;
             },
+            silenceWarnings: {
+                oauthAuthServerConfig: true,
+            }
         }),
         lastLoginMethod({
             storeInDatabase: true

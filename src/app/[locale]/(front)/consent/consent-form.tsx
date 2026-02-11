@@ -48,15 +48,23 @@ export function ConsentForm({ clientName, scopes, scopeDescriptions, dict }: Con
         scope: scopes.join(' '),
       });
 
-      if (res.error) {
+      if (res.data?.redirect) {
+        console.log('Redirecting to:', res.data.uri);
+        window.location.href = res.data.uri;
+      } else if (res.error) {
+        console.error('Error authorizing consent:', res.error);
+        setError(res.error.message ?? dict.authorizationFailed);
+        setIsAuthorizing(false);
+        setIsDenying(false);
+      } else {
+        console.error('No redirect or error found');
         setError(dict.authorizationFailed);
         setIsAuthorizing(false);
         setIsDenying(false);
-      } 
-      // Redirect will happen automatically by the server
-      // Nothing to do here
+      }
     } catch (err) {
-      setError(dict.authorizationFailed);
+      console.error('Error authorizing consent:', JSON.stringify(err, null, 2));
+      setError(err instanceof Error ? err.message : dict.authorizationFailed);
       console.error('Error authorizing consent:', err);
       setIsAuthorizing(false);
       setIsDenying(false);

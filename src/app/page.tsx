@@ -17,7 +17,7 @@ export default async function Home() {
   const dict = await getDictionary(defaultLocale);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 relative">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 relative">
       {/* Language Switcher - Top Right Corner */}
       <div className="absolute top-4 right-4 z-30">
         <Suspense fallback={
