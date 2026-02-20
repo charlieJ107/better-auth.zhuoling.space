@@ -112,7 +112,7 @@ export function CreateOAuthClientForm() {
             for (const uri of redirectUris) {
                 try {
                     const url = new URL(uri);
-                    if (url.protocol !== 'https:' && url.protocol !== 'http:' && !url.hostname.includes('localhost') && !url.hostname.includes('127.0.0.1')) {
+                    if (url.protocol === 'http:' && !(url.hostname === 'localhost' || url.hostname === '127.0.0.1')) {
                         invalidUris.push(`${uri} must use HTTPS (or HTTP for localhost)`);
                     }
                 } catch {
