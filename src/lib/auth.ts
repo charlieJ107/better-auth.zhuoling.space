@@ -18,8 +18,11 @@ if (!appName || !appUrl) {
 
 export const auth = betterAuth({
     appName: appName,
-    baseURL: appUrl,
     database: pool,
+    trustedOrigins: [
+        appUrl,
+        ...(process.env.VERCEL_BRANCH_URL ? [`https://${process.env.VERCEL_BRANCH_URL}`] : [])
+    ],
     advanced: {
         database: {
             generateId: () => {

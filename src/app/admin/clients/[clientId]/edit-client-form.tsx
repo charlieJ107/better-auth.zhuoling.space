@@ -34,7 +34,7 @@ const oauthClientUpdateFormSchema = z.object({
     client_name: z.string().min(1, "Client name is required").max(256, "Client name must be less than 256 characters"),
     redirectUrls: z.array(z.url("Invalid URL")).min(1, "At least one redirect URI is required"),
     icon: z.url("Invalid URL").optional().or(z.literal("")),
-    type: z.enum(["web", "native", "user-agent-based"]),
+    public: z.boolean(),
     scope: z.string().optional(),
     client_uri: z.url("Invalid URL").optional().or(z.literal("")),
     logo_uri: z.url("Invalid URL").optional().or(z.literal("")),
@@ -56,7 +56,7 @@ const oauthClientUpdateFormDefaults: OAuthClientUpdateFormInput = {
     client_name: "",
     redirectUrls: [""],
     icon: "",
-    type: "web",
+    public: false,
     scope: "openid profile email offline_access",
     client_uri: "",
     logo_uri: "",
@@ -163,9 +163,10 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                 client_name: client.client_name ?? "",
                 redirectUrls: ensureAtLeastOneRedirectUri(getRedirectFieldValues(client)),
                 icon: String((client as Record<string, unknown>).icon ?? client.logo_uri ?? ""),
-                type: (client.type === "web" || client.type === "native" || client.type === "user-agent-based")
-                    ? client.type
-                    : "web",
+                public: Boolean(
+                    (client as { public?: boolean }).public ??
+                    (client.type === "native" || client.type === "user-agent-based")
+                ),
                 scope: client.scope ?? "openid profile email offline_access",
                 client_uri: client.client_uri,
                 logo_uri: client.logo_uri,
@@ -226,7 +227,9 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                 client_name: values.client_name.trim(),
                 redirect_uris: redirectUris,
                 scope: values.scope?.trim() || undefined,
-                type: values.type,
+                public: values.public,
+                type: (values.public ? "native" : "web") as "web" | "native" | "user-agent-based",
+                token_endpoint_auth_method: (values.public ? "none" : "client_secret_basic") as "none" | "client_secret_basic" | "client_secret_post",
                 client_uri: values.client_uri?.trim() || undefined,
                 logo_uri: values.logo_uri?.trim() || values.icon?.trim() || undefined,
                 contacts: Array.isArray(values.contacts) && values.contacts.length > 0 ? values.contacts : undefined,
@@ -477,43 +480,25 @@ export function EditOAuthClientForm({ clientId }: EditOAuthClientFormProps) {
                     </Field>
 
                     <Field>
-                        <FieldLabel htmlFor="type">Client Type *</FieldLabel>
                         <Controller
                             control={control}
-                            name="type"
+                            name="public"
                             render={({ field }) => (
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-between h-9"
-                                            aria-invalid={Boolean(errors.type)}
-                                        >
-                                            <span className="capitalize">{field.value || "Select type"}</span>
-                                            <ChevronDown className="h-4 w-4 opacity-50" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width)">
-                                        <DropdownMenuRadioGroup
-                                            value={field.value}
-                                            onValueChange={field.onChange}
-                                        >
-                                            <DropdownMenuRadioItem value="web">
-                                                Web
-                                            </DropdownMenuRadioItem>
-                                            <DropdownMenuRadioItem value="native">
-                                                Native
-                                            </DropdownMenuRadioItem>
-                                            <DropdownMenuRadioItem value="user-agent-based">
-                                                User-agent based
-                                            </DropdownMenuRadioItem>
-                                        </DropdownMenuRadioGroup>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="public"
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                        aria-invalid={Boolean(errors.public)}
+                                    />
+                                    <FieldLabel htmlFor="public" className="font-normal cursor-pointer">
+                                        Public client
+                                    </FieldLabel>
+                                </div>
                             )}
                         />
-                        <FieldDescription className={errors.type ? "text-destructive" : undefined}>
-                            {errors.type?.message ?? "The type of OAuth client (web, native, or user-agent-based)."}
+                        <FieldDescription className={errors.public ? "text-destructive" : undefined}>
+                            {errors.public?.message ?? "Public clients cannot store a client secret (e.g. native mobile, user-agent/AI). Confidential clients can store a secret (e.g. web apps)."}
                         </FieldDescription>
                     </Field>
 

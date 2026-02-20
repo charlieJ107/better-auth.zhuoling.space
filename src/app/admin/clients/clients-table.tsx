@@ -206,7 +206,7 @@ export function OAuthClientsTable() {
                                                         variant={client.public ? "secondary" : "default"}
                                                         className="text-xs"
                                                     >
-                                                        {client.type ?? "web"}
+                                                        {client.public ? "Public" : "Confidential"}
                                                     </Badge>
                                                     <Badge
                                                         variant={client.disabled ? "destructive" : "default"}
@@ -214,11 +214,6 @@ export function OAuthClientsTable() {
                                                     >
                                                         {client.disabled ? "Disabled" : "Enabled"}
                                                     </Badge>
-                                                    {client.client_secret && (
-                                                        <Badge variant="outline" className="text-xs font-mono">
-                                                            Confidential
-                                                        </Badge>
-                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-muted-foreground">

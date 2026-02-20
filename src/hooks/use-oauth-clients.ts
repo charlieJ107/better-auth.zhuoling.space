@@ -24,6 +24,7 @@ export interface OAuthClientRow {
   redirect_uris: string[];
   scope?: string;
   type?: "web" | "native" | "user-agent-based";
+  public?: boolean;
   disabled?: boolean;
   [key: string]: unknown;
 }

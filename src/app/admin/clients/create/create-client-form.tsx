@@ -8,6 +8,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CircleAlert, CheckCircle, Copy, Key, Plus, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { authClient } from "@/lib/auth-client";
 import { Controller, useForm, useWatch, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,6 +26,7 @@ const oauthClientCreateFormSchema = z.object({
     contacts: z.string().optional(),
     tos_uri: z.url("Invalid URL").optional().or(z.literal("")),
     policy_uri: z.url("Invalid URL").optional().or(z.literal("")),
+    public: z.boolean(),
 });
 
 type OAuthClientCreateFormInput = z.infer<typeof oauthClientCreateFormSchema>;
@@ -38,6 +40,7 @@ const oauthClientCreateFormDefaults: OAuthClientCreateFormInput = {
     contacts: "",
     tos_uri: "",
     policy_uri: "",
+    public: false,
 };
 
 function ensureAtLeastOneRedirectUri(values: string[]): string[] {
@@ -144,6 +147,8 @@ export function CreateOAuthClientForm() {
                 software_version: undefined,
                 software_statement: undefined,
                 post_logout_redirect_uris: undefined,
+                token_endpoint_auth_method: values.public ? "none" : "client_secret_basic",
+                type: values.public ? "native" : "web",
             });
 
             if (result.error) {
@@ -326,6 +331,29 @@ export function CreateOAuthClientForm() {
                     />
                     <FieldDescription>
                         {errors.client_name?.message ?? "Provide a human-friendly name for this client."}
+                    </FieldDescription>
+                </Field>
+
+                <Field>
+                    <Controller
+                        control={control}
+                        name="public"
+                        render={({ field }) => (
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="public"
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    aria-invalid={Boolean(errors.public)}
+                                />
+                                <FieldLabel htmlFor="public" className="font-normal cursor-pointer">
+                                    Public client
+                                </FieldLabel>
+                            </div>
+                        )}
+                    />
+                    <FieldDescription>
+                        {errors.public?.message ?? "Public clients cannot store a client secret (e.g. native mobile, user-agent/AI). Confidential clients can store a secret (e.g. web apps)."}
                     </FieldDescription>
                 </Field>
 
