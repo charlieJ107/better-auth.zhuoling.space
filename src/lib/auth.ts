@@ -21,7 +21,7 @@ export const auth = betterAuth({
     database: pool,
     trustedOrigins: [
         appUrl,
-        ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : [])
+        ...(process.env.VERCEL_BRANCH_URL ? [`https://${process.env.VERCEL_BRANCH_URL}`] : [])
     ],
     advanced: {
         database: {
